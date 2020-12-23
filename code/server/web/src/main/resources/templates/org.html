@@ -1,0 +1,253 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>机构管理</title>
+
+    <link rel="stylesheet" href="/css/common.css">
+    <link rel="stylesheet" href="/css/element-ui.css">
+
+    <script src="/js/vue.js"></script>
+    <script src="/js/axios.js"></script>
+    <script src="/js/element-ui.js"></script>
+    <script src="/js/base64.js"></script>
+    <script src="/js/region.js"></script>
+    <script src="/js/common.js"></script>
+
+    <style>
+
+        .img-uploader .el-upload {
+            border: 1px dashed #d9d9d9;
+            border-radius: 6px;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .img-uploader .el-upload:hover {
+            border-color: #409EFF;
+        }
+
+        .img-uploader-icon {
+            font-size: 28px;
+            color: #8c939d;
+            width: 80px;
+            height: 80px;
+            line-height: 80px;
+            text-align: center;
+        }
+
+        .img {
+            width: 80px;
+            height: 80px;
+            display: block;
+        }
+
+    </style>
+</head>
+<body style="padding:0px; margin-left:15px;  margin-top:10px; margin-bottom:0px; ">
+<div id="vuebox" style="width:100%;margin-left:auto; margin-right:auto;">
+    <el-form :inline="true" style="">
+
+    </el-form>
+
+    <el-row>
+        <el-button type="primary" v-on:click="onShowInsert">新建</el-button>
+    </el-row>
+
+    <el-table :data="entityList" row-key="id" v-loading="listLoading" size="medium"  element-loading-text="拼命加载中" highlight-current-row style="width: 100%; border-top:1px solid #ccc; margin-top:10px;" height="666"  :tree-props="{children: 'children'}"  v-on:row-click='onRowClick'>
+        <el-table-column prop="orgName" label="机构名称" width="320" header-align="center"></el-table-column>
+        <el-table-column prop="createTime" label="新建时间" width="170" header-align="center" align="center" :formatter="createTimeFormatter"></el-table-column>
+        <el-table-column prop="" label="" width=""></el-table-column>
+        <el-table-column fixed="right" label="操作" header-align="center" align="center" width="120">
+            <template slot-scope="scope">
+                <el-button type="text" v-on:click="onShowUpdate(scope.row.id)">修改</el-button>
+                <el-button type="text" v-on:click="onDelete(scope.row.id)">删除</el-button>
+            </template>
+        </el-table-column>
+    </el-table>
+
+    <el-dialog :modal="true" :close-on-click-modal="false" :title="editTitle" :visible.sync="editVisible" top="5vh">
+        <el-form :model="entity" ref="entity" :rules="editRules" label-width="120px">
+
+            <el-row>
+                <el-col :span="12">
+                    <el-form-item label="机构名称" prop="orgName">
+                        <el-input v-model="entity.orgName" autocomplete="off"></el-input>
+                    </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                    <el-form-item label="上级机构" prop="parentId"  v-show="entity.parentId != '0'">
+
+                        <el-cascader
+                                v-model="entity.parentId"
+                                :options="parentId"
+                                :props="{ value:'id', label:'orgName', children: 'children', checkStrictly: true, expandTrigger: 'hover',emitPath: false }"
+                                :show-all-levels="false"
+                                style="width:100%">
+                        </el-cascader>
+
+
+                    </el-form-item>
+                </el-col>
+            </el-row>
+
+            <el-row>
+                <el-col :span="12">
+                    <el-form-item label="行政区域">
+                        <el-cascader
+                                v-model="entity.regionCode"
+                                :options="regionData"
+                                :props="{ value:'regionCode', label:'regionName', children: 'children', checkStrictly: true, expandTrigger: 'hover' }"
+                                style="width:100%">
+                        </el-cascader>
+                    </el-form-item>
+                </el-col>
+
+            </el-row>
+
+            <el-row>
+                <el-form-item label="地址">
+                    <el-input v-model="entity.address" autocomplete="off"></el-input>
+                </el-form-item>
+            </el-row>
+            <el-row>
+                <el-col :span="12">
+                    <el-form-item label="负责人姓名" prop="longitude">
+                        <el-input v-model="entity.contactName" autocomplete="off"></el-input>
+                    </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                    <el-form-item label="联系电话" prop="latitude">
+                        <el-input v-model="entity.contactMobile" autocomplete="off"></el-input>
+                    </el-form-item>
+                </el-col>
+            </el-row>
+<!--            <el-row>-->
+<!--                <el-col :span="12">-->
+<!--                    <el-form-item label="负责人照片" style="margin-bottom:5px;">-->
+<!--                        <el-upload class="img-uploader"-->
+<!--                                   :action= "uploadUrl()"-->
+<!--                                   :show-file-list="false"-->
+<!--                                   :on-success="handleContactUrlUploadSuccess"-->
+<!--                                   :before-upload="beforeUpload"-->
+<!--                                   :data="entity">-->
+<!--                            <img v-if="entity.contactUrl" :src="entity.contactUrl" class="img">-->
+<!--                            <i v-else class="el-icon-plus img-uploader-icon"></i>-->
+<!--                        </el-upload>-->
+<!--                    </el-form-item>-->
+<!--                </el-col>-->
+
+<!--            </el-row>-->
+
+        </el-form>
+        <div slot="footer" class="dialog-footer" style="margin-right:30px;">
+            <el-button v-on:click="editVisible = false">取消</el-button>
+            <el-button type="primary" v-on:click="onSave">确定</el-button>
+        </div>
+    </el-dialog>
+
+
+</div>
+
+<script>
+    var box = new Vue({
+        el: '#vuebox',
+        computed:
+            {},
+        created() {
+            vue = this;
+            vue.onList();
+            vue.regionData = regionData;
+        },
+        methods: {
+            onList() {
+                commonList(null);
+            },
+            afterList(data) {
+                vue.orgType = data.orgType;
+                vue.entityListSimple = data.entityListSimple;
+            },
+            get(id) {
+                if(id == "")
+                {
+                    commonGet(id, {parentId: vue.selectedId});
+                }
+                else
+                {
+                    commonGet(id);
+                }
+            },
+            afterGet(data) {
+                vue.parentId = data.parentId;
+            },
+            onShowInsert() {
+                commonShowInsert()
+            },
+            onShowUpdate(id) {
+                commonShowUpdate(id)
+            },
+            onSave() {
+                commonSave();
+            },
+            onDelete(id) {
+                commonDelete(id);
+            },
+            createTimeFormatter (row, column) {
+                return getDateTime(row.createTime);
+            },
+            uploadUrl : function() {
+                return API_DOMAIN + "/api/upload";
+            },
+            handleUploadSuccess(res, file) {
+                if (res.code == "200") {
+                    vue.entity.imageUrl = res.data.url;
+                }
+            },
+            handleContactUrlUploadSuccess(res, file) {
+                if (res.code == "200") {
+                    vue.entity.contactUrl = res.data.url;
+                }
+            },
+            beforeUpload(file) {
+                return true;
+            },
+            parentIdLookup(query) {
+                let data = { lookupName: "orgLookup", q: query }
+                let postData = createJsonRequest(data);
+                axios.post(getApiUrl('lookup', 'search'), postData)
+                    .then(function (response) {
+                        if (isOK((response))) {
+                            vue.parentId =  response.data.data.entityList;
+                        }
+                    })
+            },
+            onRowClick (row, column) {
+                vue.selectedId = row.id;
+            },
+        },
+        data:
+            {
+                service: 'sysOrg',
+                displayName: '机构',
+                listLoading: false,
+                entityList: [],
+                editTitle: "",
+                editVisible: false,
+                entity: {
+
+                },
+                editRules: {
+                    orgName: [
+                        {required: true, message: '机构名称不能为空', trigger: 'blur'}
+                    ]
+                },
+                valid: true,
+                selectedId:'',
+                regionData: [],
+                parentId: []
+            }
+    });
+</script>
+</body>
+</html>

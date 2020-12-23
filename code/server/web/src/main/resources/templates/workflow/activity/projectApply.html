@@ -1,0 +1,198 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>项目立项申请</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <link rel="stylesheet" href="/css/element-ui.css">
+
+    <script src="/js/vue.js"></script>
+    <script src="/js/axios.js"></script>
+    <script src="/js/element-ui.js"></script>
+    <script src="/js/base64.js"></script>
+    <script src="/js/common.js"></script>
+    <style type="text/css">
+        .content {
+            width: 100%;
+            display: flex;
+            flex-direction: row;
+            justify-content: flex-start;
+            align-items: flex-start;
+            max-height: 95vh;
+            overflow-y:auto;
+        }
+
+        .form {
+            width: 800px;
+        }
+
+        .activities{
+            margin-left: 10px;
+        }
+
+        .dialog-footer {
+            display: flex;
+            flex-direction: row;
+            justify-content: flex-end;
+            align-items: center;
+
+            margin-top: 30px;
+            margin-right: 30px;
+        }
+    </style>
+</head>
+<body style="padding:0px; margin: 10px 15px 0px;">
+<div id="vuebox" style="width:100%;margin-left:auto; margin-right:auto;">
+    <div class="content">
+        <div class="form">
+            <el-form :model="entity" ref="entity" :rules="editRules" label-width="120px">
+                <el-row>
+                    <el-col :span="12">
+                        <el-form-item label="项目编号" prop="projectCode">
+                            <el-input v-model="entity.projectCode" autocomplete="off"></el-input>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="项目名称" prop="projectName">
+                            <el-input v-model="entity.projectName" autocomplete="off"></el-input>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+                <el-row>
+                    <el-col :span="12">
+                        <el-form-item label="项目类型"  prop="projectType">
+                            <el-select v-model="entity.projectType" style="width:100%">
+                                <el-option v-for="item in projectType" :key="item.codeValue" :label="item.codeName" :value="item.codeValue">
+                                </el-option>
+                            </el-select>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="预算金额" prop="budgetAmount">
+                            <el-input v-model="entity.budgetAmount" autocomplete="off"></el-input>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+
+                <el-row>
+                    <el-col :span="12">
+                        <el-form-item label="预算组成"  prop="budgetComposition">
+                            <el-select v-model="entity.budgetComposition" multiple clearable style="width:100%">
+                                <el-option v-for="item in budgetComposition" :key="item.codeValue" :label="item.codeName" :value="item.codeValue">
+                                </el-option>
+                            </el-select>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="申建单位" prop="applyOrg">
+                            <el-input v-model="entity.applyOrg" autocomplete="off"></el-input>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+                <el-form-item label="预算描述">
+                    <el-input type="textarea" :rows="2" v-model="entity.budgetDesc"></el-input>
+                </el-form-item>
+
+                <el-form-item label="项目描述">
+                    <el-input type="textarea" :rows="2" v-model="entity.projectDesc"></el-input>
+                </el-form-item>
+
+                <el-form-item label="申报描述">
+                    <el-input type="textarea" :rows="2" v-model="entity.applyDesc"></el-input>
+                </el-form-item>
+                <el-form-item label="附件">
+                    <div class="uploadList" v-for="(row,k) in entity.fileList">
+                        <a class="link" :href="row.fileUrl" target="_blank" :title="row.fileName">{{row.fileName}}</a>
+                    </div>
+                </el-form-item>
+            </el-form>
+            <div class="dialog-footer">
+                <el-button v-on:click="onCancel">取消</el-button>
+                <el-button v-on:click="onSave(1)">保存</el-button>
+                <el-button type="primary" v-on:click="onSave(2)">提交</el-button>
+            </div>
+        </div>
+        <div class="activities">
+            <el-timeline>
+                <el-timeline-item
+                        v-for="(activity, index) in activities"
+                        :key="index"
+                        :color="activity.color"
+                        :content="activity.content"
+                        :timestamp="activity.createTime">
+                    {{activity.content}}
+                </el-timeline-item>
+            </el-timeline>
+        </div>
+
+    </div>
+</div>
+<script>
+    var box = new Vue({
+        el: '#vuebox',
+        created() {
+            vue = this;
+            vue.onLoad();
+        },
+        methods: {
+            onLoad(){
+               var postData = createJsonRequest({
+                   instanceId: getUrlParameter("instanceId"),
+                   activity: 'apply',
+                   activityId: getUrlParameter("activityId"),
+               });
+               axios.post(getApiUrl("project", "getInstance"), postData).then(function (response) {
+                    if (isOK(response)) {
+                        vue.entity =  response.data.data.entity;
+                        vue.projectType =  response.data.data.projectType;
+                        vue.budgetComposition =  response.data.data.budgetComposition;
+                        vue.activities = response.data.data.activities;
+                    }
+               });
+            },
+            onSave(type) {
+                vue.entity.saveType = type;
+                vue.entity.activityId = getUrlParameter("activityId");
+                vue.$refs["entity"].validate((valid) => {
+                    if (valid) {
+                        var postData = createJsonRequest(vue.entity);
+                        axios.post(getApiUrl("project", "update"), postData).then(function (response) {
+                            if (isOK(response)) {
+                                parent.box.onOK();
+                            }
+                        });
+                       vue.valid = true;
+                    }
+                    else {
+                        vue.valid = false;
+                    }
+               });
+            },
+            onCancel() {
+                parent.box.onCancel();
+            },
+        },
+        data:{
+            entity: {
+            },
+            projectType: [],
+            budgetComposition: [],
+            valid: true,
+            editRules: {
+                activityRemark: [
+                    {required: true, message: '审批意见不能为空', trigger: 'change'}
+                ]
+            },
+            activities: []
+        }
+    });
+
+
+
+
+
+
+
+</script>
+</body>
+</html>

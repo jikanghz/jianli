@@ -1,0 +1,169 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>待办工作</title>
+
+    <link rel="stylesheet" href="/css/common.css">
+    <link rel="stylesheet" href="/css/element-ui.css">
+
+    <script src="/js/vue.js"></script>
+    <script src="/js/axios.js"></script>
+    <script src="/js/element-ui.js"></script>
+    <script src="/js/base64.js"></script>
+    <script src="/js/common.js"></script>
+
+    <style>
+    </style>
+</head>
+<body style="padding:0px; margin-left:15px;  margin-top:10px; margin-bottom:0px; ">
+<div id="vuebox" style="width:100%;margin-left:auto; margin-right:auto;">
+    <el-form :inline="true" style="">
+        <el-form-item label="单据编号">
+            <el-input v-model="conditions.instanceCode"></el-input>
+        </el-form-item>
+
+        <el-form-item label="流程名称">
+            <el-input v-model="conditions.workflowName"></el-input>
+        </el-form-item>
+
+        <el-form-item label="申请时间">
+            <el-date-picker v-model="conditions.createTime"
+                            type="daterange"
+                            format="yyyy-MM-dd"
+                            value-format="yyyy-MM-dd"
+                            range-separator="至"
+                            start-placeholder=""
+                            end-placeholder="">
+            </el-date-picker>
+        </el-form-item>
+
+        <el-form-item>
+            <el-button type="primary" v-on:click="onList">搜索</el-button>
+        </el-form-item>
+    </el-form>
+
+    <el-table :data="entityList" v-on:sort-change='onSortChange'v-loading="listLoading" size="medium" element-loading-text="拼命加载中" highlight-current-row style="width: 100%; border-top:1px solid #ccc; margin-top:10px;" height="666" v-on:row-click='onRowClick'>
+        <el-table-column prop="instanceCode" label="单据编号" width="220" header-align="center" align="center" sortable='custom'></el-table-column>
+        <el-table-column prop="workflowName" label="流程名称" width="220" header-align="center" align="center" sortable='custom'></el-table-column>
+        <el-table-column prop="createBy" label="申请人" width="160" header-align="center" align="center" sortable='custom' :formatter="createByFormatter"></el-table-column>
+        <el-table-column prop="createTime" label="申请时间" width="170" header-align="center" align="center" sortable='custom' :formatter="createTimeFormatter"></el-table-column>
+        <el-table-column prop="stepName" label="当前步骤" width="180" header-align="center" align="center" sortable='custom'></el-table-column>
+        <el-table-column prop="status" label="状态" width="160" header-align="center" align="center" sortable='custom' :formatter="statusFormatter"></el-table-column>
+
+          <el-table-column prop="" label="" width=""></el-table-column>
+        <el-table-column fixed="right" label="操作" header-align="center" align="center" width="120">
+            <template slot-scope="scope">
+                <el-button type="text" v-on:click="onShowActivity(scope.row)">处理</el-button>
+            </template>
+        </el-table-column>
+    </el-table>
+
+    <div style="margin-top:4px;">
+        <el-pagination v-on:size-change="onPageSizeChange"
+                       v-on:current-change="onPageNumberChange"
+                       :current-page="page.pageNumber"
+                       :page-sizes="[10, 20, 50, 100]"
+                       :page-size="page.pageSize"
+                       layout="total, sizes, prev, pager, next, jumper"
+                       :total="page.totalCount">
+        </el-pagination>
+    </div>
+
+    <el-dialog :modal="true" :close-on-click-modal="false" width="60%" fullscreen :title="activityTitle" :visible.sync="activityVisible" @close="onCancel">
+        <iframe frameborder="0" scrolling="no" style="position: relative; width: 100%; height: 80vh; background-color: transparent;" :src="activityUrl" allowtransparency="true"></iframe>
+    </el-dialog>
+
+</div>
+
+<script>
+    var box = new Vue({
+        el: '#vuebox',
+        computed:
+            {},
+        created() {
+            vue = this;
+            vue.onList();
+        },
+        methods: {
+            getConditions() {
+                var conditions = [];
+                createCondition(conditions, "instanceCode", "LIKE", vue.conditions.instanceCode);
+                createCondition(conditions, "workflowName", "LIKE", vue.conditions.workflowName);
+                createCondition(conditions, "createTime", "=", vue.conditions.createTime, "dateRange");
+                return conditions;
+            },
+            onList() {
+                commonList(vue.getConditions());
+            },
+            afterList(data) {
+                vue.createBy = data.createBy;
+                vue.status = data.status;
+            },
+            onPageSizeChange(val) {
+                commonOnPageSizeChange(val);
+            },
+            onPageNumberChange(val) {
+                commonOnPageNumberChange(val);
+            },
+            onSortChange: function (column, prop, order) {
+                commonOnSortChange(column, prop, order);
+            },
+            statusFormatter (row, column) {
+                return getCodeName(vue.status, row.status);
+            },
+            createByFormatter (row, column) {
+                return getCodeName(vue.createBy, row.createBy);
+            },
+            createTimeFormatter (row, column) {
+                return getDateTime(row.createTime);
+            },
+            onRowClick (row, column) {
+                vue.selectedRow = row;
+            },
+            onShowActivity(row) {
+                vue.activityUrl = addUrlParameter(row.activityUrl, "activityId", row.id);
+                vue.activityUrl = addUrlParameter(vue.activityUrl, "instanceId", row.instanceId);
+                vue.activityTitle = row.workflowName + "-" + row.stepName;
+                vue.activityVisible = true;
+            },
+            onCancel(){
+                vue.activityVisible = false;
+                vue.activityUrl = "/workflow/blank";
+                vue.onList();
+            },
+            onOK(){
+                vue.$message({showClose: true, message: "操作成功", type: 'success'});
+                vue.activityVisible = false;
+                vue.activityUrl = "/workflow/blank";
+                vue.onList();
+            },
+        },
+        data:
+            {
+                service: 'workflowActivity',
+                displayName: '待办工作',
+                conditions: {
+                    instanceCode: "",
+                    workflowName: "",
+                    createTime: ""
+                },
+                page: {
+                    pageNumber: 1,
+                    pageSize: 10,
+                    totalCount: 0,
+                    orderBy: ""
+                },
+                listLoading: false,
+                entityList: [],
+                selectedRow: {},
+                activityTitle: "",
+                activityVisible: false,
+                status: [],
+                createBy:[],
+                activityUrl: ""
+            }
+    });
+</script>
+</body>
+</html>

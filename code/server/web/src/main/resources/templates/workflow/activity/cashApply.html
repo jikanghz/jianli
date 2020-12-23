@@ -1,0 +1,153 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>提现申请</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <link rel="stylesheet" href="/css/element-ui.css">
+
+    <script src="/js/vue.js"></script>
+    <script src="/js/axios.js"></script>
+    <script src="/js/element-ui.js"></script>
+    <script src="/js/base64.js"></script>
+    <script src="/js/common.js"></script>
+    <style type="text/css">
+        .content {
+            width: 100%;
+            display: flex;
+            flex-direction: row;
+            justify-content: flex-start;
+            align-items: flex-start;
+            max-height: 95vh;
+            overflow-y:auto;
+        }
+
+        .form {
+            width: 800px;
+        }
+
+        .activities{
+            margin-left: 10px;
+        }
+
+        .dialog-footer {
+            display: flex;
+            flex-direction: row;
+            justify-content: flex-end;
+            align-items: center;
+
+            margin-top: 30px;
+            margin-right: 30px;
+        }
+    </style>
+</head>
+<body style="padding:0px; margin: 10px 15px 0px;">
+<div id="vuebox" style="width:100%;margin-left:auto; margin-right:auto;">
+    <div class="content">
+        <div class="form">
+            <el-form :model="entity" ref="entity" :rules="editRules" label-width="120px">
+                <el-row>
+                    <el-col :span="12">
+                        <el-form-item label="会员帐号">
+                            <el-input v-model="entity.loginName" autocomplete="off"></el-input>
+                        </el-form-item>
+                    </el-col>
+
+                    <el-col :span="12">
+                        <el-form-item label="提现金额">
+                            <el-input v-model="entity.amount" autocomplete="off"></el-input>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+                <el-form-item label="附件">
+                    <div class="uploadList" v-for="(row,k) in entity.fileList">
+                        <a class="link" :href="row.fileUrl" target="_blank" :title="row.fileName">{{row.fileName}}</a>
+                    </div>
+                </el-form-item>
+            </el-form>
+            <div class="dialog-footer">
+                <el-button v-on:click="onCancel">取消</el-button>
+                <el-button v-on:click="onSave(1)">保存</el-button>
+                <el-button type="primary" v-on:click="onSave(2)">提交</el-button>
+            </div>
+        </div>
+        <div class="activities">
+            <el-timeline>
+                <el-timeline-item
+                        v-for="(activity, index) in activities"
+                        :key="index"
+                        :color="activity.color"
+                        :content="activity.content"
+                        :timestamp="activity.createTime">
+                    {{activity.content}}
+                </el-timeline-item>
+            </el-timeline>
+        </div>
+
+    </div>
+</div>
+<script>
+    var box = new Vue({
+        el: '#vuebox',
+        created() {
+            vue = this;
+            vue.onLoad();
+        },
+        methods: {
+            onLoad(){
+               var postData = createJsonRequest({
+                   instanceId: getUrlParameter("instanceId"),
+                   activity: 'apply',
+                   activityId: getUrlParameter("activityId"),
+               });
+               axios.post(getApiUrl("cash", "getInstance"), postData).then(function (response) {
+                    if (isOK(response)) {
+                        vue.entity =  response.data.data.entity;
+                        vue.activities = response.data.data.activities;
+                    }
+               });
+            },
+            onSave(type) {
+                vue.entity.saveType = type;
+                vue.entity.activityId = getUrlParameter("activityId");
+                vue.$refs["entity"].validate((valid) => {
+                    if (valid) {
+                        var postData = createJsonRequest(vue.entity);
+                        axios.post(getApiUrl("cash", "update"), postData).then(function (response) {
+                            if (isOK(response)) {
+                                parent.box.onOK();
+                            }
+                        });
+                       vue.valid = true;
+                    }
+                    else {
+                        vue.valid = false;
+                    }
+               });
+            },
+            onCancel() {
+                parent.box.onCancel();
+            },
+        },
+        data:{
+            entity: {
+            },
+            valid: true,
+            editRules: {
+                activityRemark: [
+                    {required: true, message: '审批意见不能为空', trigger: 'change'}
+                ]
+            },
+            activities: []
+        }
+    });
+
+
+
+
+
+
+
+</script>
+</body>
+</html>

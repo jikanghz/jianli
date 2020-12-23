@@ -1,0 +1,417 @@
+﻿<!DOCTYPE html>
+<html xmlns:v-on="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="UTF-8">
+    <title>管理系统</title>
+
+    <link rel="stylesheet" href="/css/common.css">
+    <link rel="stylesheet" href="/css/element-ui.css">
+
+    <script src="/js/vue.js"></script>
+    <script src="/js/axios.js"></script>
+    <script src="/js/element-ui.js"></script>
+    <script src="/js/common.js"></script>
+
+    <style>
+        .top-admin {
+            height: 50px;
+            margin-right: 15px;
+            font-family: "微软雅黑";
+
+            display: flex;
+            flex-direction: row;
+            justify-content: flex-end;
+            align-items: center;
+        }
+
+
+        .top-admin-info span {
+            color: #348fde;
+            margin-right: 5px
+        }
+
+        .top-admin-icon {
+            height: 50px;
+            line-height: 24px;
+
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: center;
+            width:450px;
+        }
+
+
+        .top-admin-icon ul li {
+            height: 23px;
+            line-height: 23px;
+            padding-left: 30px;
+            margin-left: 10px;
+            float: left;
+            display: inline
+        }
+
+        .top-admin-icon ul li a {
+            font-size: 14px;
+            font-family: "微软雅黑";
+            color: #4d4d4d;
+        }
+
+
+        .top-message {
+            cursor: pointer;
+        }
+
+        .top-icon-message {
+            width: 23px;
+            height: 23px;
+            cursor: pointer;
+        }
+
+        .top-icon-help {
+            background: url(/image/icon.png) no-repeat 0px 2px
+        }
+
+        .top-icon-pw {
+            background: url(/image/icon.png) no-repeat 0px -33px;
+        }
+
+        .top-icon-exit {
+            background: url(/image/icon.png) no-repeat 0px -70px;
+            cursor: pointer;
+        }
+        .el-tabs__content {
+            padding: 0px !important;
+        }
+        .el-main {
+            padding: 0px !important;
+        }
+
+        .el-menu{
+            border-right: 0px !important;
+        }
+
+
+        .el-menu-item, .el-submenu__title:hover {
+            background-color: rgb(38,52,69) !important;
+        }
+
+       .el-scrollbar__wrap {
+         overflow-x: hidden;
+       }
+
+       .waitingWorkNumber {
+        background-color: red;
+        position: relative;
+        z-index: 2;
+        top: 10px;
+        color: white;
+        font-size: x-small;
+        padding: 1px 4px;
+        line-height: 1;
+        text-align: center;
+        white-space: nowrap;
+        vertical-align: middle;
+        background-color: red;
+        border-radius: 10px;
+        min-width: 10px;
+        left:16px;
+        cursor: pointer;
+        }
+
+    .hidden{
+        display:none
+    }
+    </style>
+</head>
+<body style="margin:0px; padding:0px; min-height: 100vh;">
+<div id="vuebox" style="background-color:#f1f1f1; min-height: 100vh;">
+    <el-container style="min-height: 100vh; max-height: 100vh; ">
+            <el-aside :width="asideWidth" height="100%" style="background-color: rgb(48, 65, 86)">
+                <el-scrollbar  style="height: 90%">
+                    <el-menu :default-active="activeModuleId"
+                             background-color="rgb(48, 65, 86)"
+                             text-color="#fff"
+                             active-text-color="rgb(64, 158, 255)"
+                             :collapse="isCollapse" v-on:select="moduleSelect">
+                        <el-menu-item index="home">
+                            <i class="el-icon-s-home"></i>
+                            <span slot="title">首页</span>
+                        </el-menu-item>
+
+                        <el-submenu v-for="(module,index) in moduleList" :index="module.id" :key="index">
+                            <template slot="title">
+                                <i :class="module.iconUrl"></i>
+                                <span>{{module.moduleName}}</span>
+                            </template>
+                            <el-menu-item v-for="(layer2Module,index) in module.moduleList" :index="layer2Module.id" :key="index">{{layer2Module.moduleName}}</el-menu-item>
+                        </el-submenu>
+
+                    </el-menu>
+                </el-scrollbar>
+            </el-aside>
+        <el-container>
+        <el-header style="height:50px; margin:0px; padding:0px;">
+                <div style="float: left; display: inline;  height: 50px;">
+                    <a title="收缩菜单"><img src="/image/navOn.png" style="width: 20px; height: 20px; margin-top: 15px; margin-left: 20px; "  v-show="!isCollapse" v-on:click="switchAside();" ></a>
+                    <a title="展开菜单"><img src="/image/navOff.png" style="width: 20px; height: 20px; margin-top: 15px; margin-left: 20px; " alt="展开菜单"  v-show="isCollapse" v-on:click="switchAside();" ></a>
+                </div>
+
+                <div class="top-admin">
+<!--                    <div style="top-message" v-on:click="openHomeTab();">-->
+<!--                        <div>-->
+<!--                            <span :class="waitingWorkNumber>0?'waitingWorkNumber':'waitingWorkNumber hidden'" style="right: 0px;">{{waitingWorkNumber}}</span>-->
+<!--                        </div>-->
+<!--                        <img src="/image/message.png" class="top-icon-message" v-on:click="openHomeTab();">-->
+<!--                    </div>-->
+                    <div class="top-admin-icon">
+                        <ul>
+                            <li><span style="font-size:16px; color: #348fde; margin-right:10px;">{{userName}}</span><span style="margin-right:20px;">欢迎您！</span></li>
+                            <li class="top-icon-pw" v-on:click="showPasswordDialog();"><a style="font-size:16px;margin-right:20px;" v-on:click="showPasswordDialog();">修改密码</a></li>
+                            <li class="top-icon-exit" onclick="location.href = '/logout';"><a href="/logout" style="font-size:16px;">退出</a></li>
+                        </ul>
+                    </div>
+
+                </div>
+
+        </el-header>
+
+            <el-main style="">
+                <div id="DivMain">
+<!--                    <a><img src="/image/tabControl.png" style="position: absolute; top:50px; right:3px;z-index:999;"></a>-->
+                    <el-tabs type="border-card" v-model="activeTabName" closable v-on:tab-remove="removeTab">
+                        <el-tab-pane v-for="(tabData,index) in tabDataList" :label="tabData.moduleName" :name="tabData.id" :index="tabData.id" :key="index">
+                            <iframe :id="'cardIFrame_'+tabData.id" frameborder="0" scrolling="no" style="position: relative; width: 100%; height:860px; background-color: transparent;" :src="tabData.moduleUrl" allowtransparency="true"></iframe>
+                        </el-tab-pane>
+
+                    </el-tabs>
+                </div>
+            </el-main>
+        </el-container>
+    </el-container>
+
+    <el-dialog :modal="true" :close-on-click-modal="false" :title="editTitle" :visible.sync="editVisible" width="500px">
+        <el-form :model="entity" ref="entity" :rules="editRules" label-width="120px">
+            <el-form-item label="旧密码" prop="oldPassword">
+                <el-input v-model="entity.oldPassword" type="password" autocomplete="off"></el-input>
+            </el-form-item>
+            <el-form-item label="新密码" prop="newPassword">
+                <el-input v-model="entity.newPassword" type="password" autocomplete="off"></el-input>
+            </el-form-item>
+            <el-form-item label="再次输入密码" prop="confirmPassword">
+                <el-input v-model="entity.confirmPassword" type="password" autocomplete="off"></el-input>
+            </el-form-item>
+        </el-form>
+        <div slot="footer" class="dialog-footer" style="margin-right:30px;">
+            <el-button v-on:click="editVisible = false">取消</el-button>
+            <el-button type="primary" v-on:click="updatePassword">确定</el-button>
+        </div>
+    </el-dialog>
+
+</div>
+
+<script>
+    var box = new Vue({
+        el: '#vuebox',
+        computed:
+            {
+            },
+        created() {
+            vue = this;
+            axios.post(getApiUrl("security", "getMainData"),
+                createJsonRequest()
+            ).then(function (response) {
+                if(isOK(response)) {
+                    vue.moduleList = response.data.data.moduleList;
+                    vue.userName = response.data.data.userName;
+                    if (vue.moduleList.length > 0) {
+                        if (vue.moduleList[0].moduleList.length > 0 && vue.moduleList[0].moduleList.length > 0) {
+                            vue.activeModuleId = vue.moduleList[0].moduleList[0].id;
+                        }
+                    }
+                    setTimeout(function (){
+                        vue.moduleSelect('home');
+                    }, 100);
+                }
+                else {
+                }
+            }, function (res) {
+                vue.$message({ showClose: true, message: response.data.message, type: 'error' });
+            });
+        },
+        methods: {
+            switchAside(){
+                vue.isCollapse = !vue.isCollapse;
+
+                if(vue.isCollapse)
+                {
+                    vue.asideWidth = '64px';
+                }
+                else
+                {
+                    vue.asideWidth = '220px';
+                }
+            },
+            moduleSelect(key) {
+                if(key == "home")
+                {
+                    var exists = false;
+                    for (var i = 0; i < vue.tabDataList.length; i++) {
+                        if (vue.tabDataList[i].id == key) {
+                            vue.tabDataList[i].moduleName = '首页';
+                            vue.tabDataList[i].moduleUrl = '/home';
+                            vue.activeTabName = key;
+                            exists = true;
+                        }
+                    }
+                    if(!exists) {
+                        var tabData = {
+                            "id": 'home',
+                            "moduleName": '首页',
+                            "moduleUrl": '/home'
+                        };
+                        vue.tabDataList.unshift(tabData);
+                        vue.activeTabName = 'home';
+                        vue.activeModuleId = 'home';
+                    }
+                    return;
+                }
+                var module = vue.getModule(key);
+                if (module != null) {
+                    vue.activeModuleId = module.id;
+                    var exists = false;
+                    for (var i = 0; i < vue.tabDataList.length; i++) {
+                        if (vue.tabDataList[i].id == key) {
+                            vue.tabDataList[i].moduleName = module.moduleName;
+                            vue.tabDataList[i].moduleUrl = module.moduleUrl;
+                            vue.activeTabName = key;
+                            exists = true;
+                        }
+                    }
+                    if (!exists) {
+                        var tabData = {
+                            "id": module.id,
+                            "moduleName": module.moduleName,
+                            "moduleUrl": module.moduleUrl
+                        };
+                        vue.tabDataList.push(tabData);
+                        vue.activeTabName = key;
+                    }
+                }
+            },
+            getModule(key) {
+                for (var i = 0; i < vue.moduleList.length; i++) {
+                    for (var j = 0; j < vue.moduleList[i].moduleList.length; j++) {
+                        if (vue.moduleList[i].moduleList[j].id == key) {
+                            return vue.moduleList[i].moduleList[j];
+                        }
+                    }
+                }
+                return null;
+            },
+            removeTab(targetName) {
+                for (var i = 0; i < vue.tabDataList.length; i++) {
+                    if (vue.tabDataList[i].id == targetName) {
+                        vue.tabDataList.splice(i, 1);
+                        if (vue.tabDataList.length > 0) {
+                            vue.activeTabName = vue.tabDataList[0].id;
+                        }
+                    }
+                }
+            },
+            showPasswordDialog() {
+                vue.editTitle = "修改密码";
+                vue.editVisible = true;
+                if (!vue.valid) {
+                    vue.$refs["entity"].resetFields();
+                }
+            },
+            updatePassword() {
+                var oldPassword = vue.entity.oldPassword;
+                var newPassword = vue.entity.newPassword;
+                var confirmPassword = vue.entity.confirmPassword;
+
+                vue.$refs["entity"].validate((valid) => {
+                    if (valid) {
+                        axios.post(getApiUrl("security", "updatePassword"),
+                            createJsonRequest({oldPassword: oldPassword, newPassword: newPassword, confirmPassword: confirmPassword})
+                        )
+                        .then(function (response) {
+                            if(isOK(response))
+                            {
+                                vue.$message({ showClose: true, message: "密码修改成功", type: 'success' });
+                                vue.editVisible = false;
+                            }
+                        })
+                    }
+                    else {
+                        vue.valid = false;
+                    }
+                });
+            },
+            openHomeTab() {
+                vue.moduleSelect("home");
+                if(document.getElementById('cardIFrame_home'))
+                {
+                    document.getElementById('cardIFrame_home').contentWindow.document.location="/home";
+                }
+            },
+        },
+        data:
+            {
+                isCollapse: false,
+                asideWidth: '220px',
+                editTitle: "",
+                editVisible: false,
+                activeModuleId: "",
+                activeTabName:"",
+                moduleList: [],
+                tabDataList: [],
+                userName:"",
+                entity: {
+                    oldPassword: "",
+                    newPassword: "",
+                    confirmPassword: ""
+                },
+                editRules: {
+                    oldPassword: [
+                        { required: true, message: '旧密码不能为空', trigger: 'blur' }
+                    ],
+                    newPassword: [
+                        { required: true, message: '新密码不能为空', trigger: 'blur' }
+                    ],
+                    confirmPassword: [
+                        { required: true, message: '请再次输入密码', trigger: 'blur' }
+                    ]
+                },
+                valid: true,
+                homeKey: 'home',
+                waitingWorkNumber: 0
+            }
+    });
+
+    function openTab(key, title, url){
+        var exists = false;
+        for (var i = 0; i < box.tabDataList.length; i++) {
+            if (box.tabDataList[i].id == key) {
+            box.tabDataList[i].moduleName = title;
+            box.tabDataList[i].moduleUrl = url;
+            box.activeTabName = key;
+            exists = true;
+            }
+        }
+        if (!exists) {
+            var tabData = {
+                "id": key,
+                "moduleName": title,
+                "moduleUrl": url
+            };
+            box.tabDataList.push(tabData);
+            box.activeTabName = key;
+        }
+    }
+
+
+</script>
+</body>
+</html>

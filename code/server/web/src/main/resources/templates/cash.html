@@ -1,0 +1,261 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>提现管理</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <link rel="stylesheet" href="/css/element-ui.css">
+
+    <script src="/js/vue.js"></script>
+    <script src="/js/axios.js"></script>
+    <script src="/js/element-ui.js"></script>
+    <script src="/js/base64.js"></script>
+    <script src="/js/common.js"></script>
+    <style type="text/css">
+        .uploadList
+        {
+            display: flex;
+            flex-direction: row;
+            justify-content: flex-start;
+            align-items: center;
+            margin-left: 6px;
+            margin-top:0px;
+            margin-bottom:0px;
+            margin-right: 6px;
+            padding:0px;
+            height: 40px;
+            line-height:40px;
+        }
+        .link
+        {
+            color:#409EFF;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body style="padding:0px; margin: 10px 15px 0px;">
+<div id="vuebox" style="width:100%;margin-left:auto; margin-right:auto;">
+    <el-form :inline="true">
+
+        <el-form-item label="会员账号">
+            <el-input style="width: 120px" v-model="conditions.loginName"></el-input>
+        </el-form-item>
+        <el-form-item label="提现状态" prop="status">
+            <el-select v-model="conditions.status" clearable style="width:100%">
+                <el-option v-for="item in status" :key="item.codeValue" :label="item.codeName" :value="item.codeValue">
+                </el-option>
+            </el-select>
+        </el-form-item>
+        <el-form-item label="提现时间">
+            <el-date-picker style="width: 240px"
+                            v-model="conditions.createTime"
+                            type="daterange"
+                            format="yyyy-MM-dd"
+                            value-format="yyyy-MM-dd"
+                            range-separator="至"
+                            start-placeholder=""
+                            end-placeholder="">
+            </el-date-picker>
+        </el-form-item>
+
+        <el-form-item>
+            <el-button type="primary" v-on:click="onList">搜索</el-button>
+        </el-form-item>
+    </el-form>
+
+    <el-row>
+        <el-button type="primary" v-on:click="onShowInsert">新建</el-button>
+    </el-row>
+
+    <el-table ref="multipleTable" :data="entityList"
+              v-on:sort-change='onSortChange' v-loading="listLoading" size="medium" element-loading-text="拼命加载中"
+              highlight-current-row style="width: 100%; border-top:1px solid #ccc; margin-top:10px;" height="666">
+        <el-table-column prop="billCode" label="单据编号" width="200" header-align="center" align="center"
+                         sortable='custom'></el-table-column>
+
+        <el-table-column prop="loginName" label="会员账号" width="120" header-align="center" align="center"
+                         sortable='custom'></el-table-column>
+
+        <el-table-column prop="amount" label="提现金额" width="100" header-align="center" align="center"
+                         sortable='custom'></el-table-column>
+
+        <el-table-column prop="workflowCreateByName" label="申请人" width="100" header-align="center" align="center"></el-table-column>
+        <el-table-column prop="workFlowCreateTime" label="申请时间" width="170" header-align="center" align="center"></el-table-column>
+        <el-table-column prop="instanceStatusName" label="流程状态" width="100" header-align="center" align="center"></el-table-column>
+        <el-table-column prop="stepName" label="当前步骤" width="120" header-align="center" align="center"></el-table-column>
+        <el-table-column prop="activityUsers" label="当前处理人" width="160" header-align="center" align="center"></el-table-column>
+
+
+        <el-table-column prop="" label="" width=""></el-table-column>
+        <el-table-column fixed="right" label="操作" header-align="center" align="center" width="180">
+            <template slot-scope="scope">
+                <el-button v-show="scope.row.instanceStatusName == null || scope.row.instanceStatusName.length < 1" type="text" v-on:click="onShowUpdate(scope.row.id)">修改</el-button>
+            </template>
+        </el-table-column>
+    </el-table>
+
+    <div style="margin-top:4px;">
+        <el-pagination v-on:size-change="onPageSizeChange"
+                       v-on:current-change="onPageNumberChange"
+                       :current-page="page.pageNumber"
+                       :page-sizes="[10, 20, 50, 100]"
+                       :page-size="page.pageSize"
+                       layout="total, sizes, prev, pager, next, jumper"
+                       :total="page.totalCount">
+        </el-pagination>
+    </div>
+
+    <el-dialog :modal="true" :close-on-click-modal="false" :title="editTitle" :visible.sync="editVisible">
+        <el-form :model="entity" ref="entity" :rules="editRules" label-width="120px">
+            <el-row>
+                <el-col :span="12">
+                    <el-form-item label="会员帐号" prop="loginName">
+                        <el-input v-model="entity.loginName" autocomplete="off"></el-input>
+                    </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                    <el-form-item label="提现金额" prop="userName">
+                        <el-input v-model="entity.amount" autocomplete="off"></el-input>
+                    </el-form-item>
+                </el-col>
+            </el-row>
+
+            <el-form-item  label="附件">
+                <el-upload class="img-uploader"
+                           :action= "uploadUrl()"
+                           :show-file-list="false"
+                           :on-success="handleUploadSuccess"
+                           :before-upload="beforeUpload" multiple>
+                    <el-button size="small">点击上传</el-button>
+                </el-upload>
+                <div class="uploadList" v-for="(row,k) in entity.fileList">
+                    <a class="link" :href="row.fileUrl" target="_blank" :title="row.fileName">{{row.fileName}}</a>
+                    <i class="el-icon-circle-close" @click="deleteUpload(k)"  title="删除" ></i>
+                </div>
+            </el-form-item>
+
+        </el-form>
+        <div slot="footer" class="dialog-footer" style="margin-right:30px;">
+            <el-button v-on:click="editVisible = false">取消</el-button>
+            <el-button v-on:click="onSave(1)">保存</el-button>
+            <el-button type="primary" v-on:click="onSave(2)">提交</el-button>
+        </div>
+    </el-dialog>
+</div>
+<script>
+    var box = new Vue({
+        el: '#vuebox',
+        computed:
+            {},
+        created() {
+            vue = this;
+            vue.onList();
+        },
+        methods: {
+            getConditions() {
+                var conditions = [];
+                createCondition(conditions, "loginName", "LIKE", vue.conditions.loginName);
+                createCondition(conditions, "status", "=", vue.conditions.status);
+                createCondition(conditions, "createTime", "=", vue.conditions.createTime, "dateRange");
+                return conditions;
+            },
+            onList() {
+                commonList(vue.getConditions());
+            },
+            afterList(data) {
+                vue.status = data.status;
+            },
+            onExportList() {
+                commonExportList(vue.getConditions());
+            },
+            onPageSizeChange(val) {
+                commonOnPageSizeChange(val);
+            },
+            onPageNumberChange(val) {
+                commonOnPageNumberChange(val);
+            },
+            onSortChange: function (column, prop, order) {
+                commonOnSortChange(column, prop, order);
+            },
+            get(id) {
+                commonGet(id);
+            },
+            afterGet(data) {
+            },
+            onShowInsert() {
+                commonShowInsert()
+            },
+            onShowUpdate(id) {
+                commonShowUpdate(id)
+            },
+            onSave(type) {
+                vue.entity.saveType = type;
+                commonSave();
+            },
+            createTimeFormatter(row, column) {
+                return getDateTime(row.createTime);
+            },
+            approveTimeFormatter(row, column) {
+                return getDateTime(row.approveTime);
+            },
+            payTimeFormatter(row, column) {
+                return getDateTime(row.payTime);
+            },
+            statusFormatter (row, column) {
+                return getCodeName(vue.status, row.status);
+            },
+            uploadUrl : function() {
+                return API_DOMAIN + "/api/upload";
+            },
+            handleUploadSuccess(res, file) {
+                if (res.code == "200") {
+                    vue.entity.fileList.push(res.data);
+                }
+            },
+            beforeUpload(file) {
+                return true;
+            },
+            deleteUpload(i,field){
+                vue.entity.fileList.splice(i,1);
+                vue.$forceUpdate();
+            },
+        },
+        data:
+            {
+                service: 'cash',
+                displayName: '提现',
+                conditions: {
+                    loginName: "",
+                    status: "",
+                    customerName: "",
+                },
+                page: {
+                    pageNumber: 1,
+                    pageSize: 10,
+                    totalCount: 0,
+                    orderBy: ""
+                },
+                listLoading: false,
+                entityList: [],
+                editTitle: "",
+                editVisible: false,
+                editRules: {
+                    loginName: [
+                        {required: true, message: '会员帐号不能为空', trigger: 'blur'}
+                    ]
+                },
+                approveTitle: "",
+                approveVisible: false,
+                entity: {
+                    fileList: []
+                },
+                approveRules: {
+
+                },
+                valid: true,
+                status: []
+            }
+    });
+</script>
+</body>
+</html>

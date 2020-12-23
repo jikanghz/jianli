@@ -1,0 +1,194 @@
+﻿<!DOCTYPE html>
+<html >
+<head>
+    <meta charset="UTF-8">
+    <title>工作流程设计</title>
+
+    <link rel="stylesheet" href="/css/common.css">
+    <link rel="stylesheet" href="/css/element-ui.css">
+
+    <script src="/js/vue.js"></script>
+    <script src="/js/axios.js"></script>
+    <script src="/js/element-ui.js"></script>
+    <script src="/js/base64.js"></script>
+    <script src="/js/common.js"></script>
+    <style >
+        .el-dialog__body {
+            padding-left: 20px;
+            padding-right: 30px;
+            padding-top: 10px;
+        }
+    </style>
+</head>
+<body style="padding:0px; margin-left:15px;  margin-top:10px; margin-bottom:0px; ">
+<div id="vuebox" style="width:100%;margin-left:auto; margin-right:auto;">
+    <el-form :inline="true" style="">
+        <el-form-item label="流程名称">
+            <el-input v-model="conditions.workflowName"></el-input>
+        </el-form-item>
+        <el-form-item label="新建时间">
+            <el-date-picker v-model="conditions.createTime"
+                            type="daterange"
+                            format="yyyy-MM-dd"
+                            value-format="yyyy-MM-dd"
+                            range-separator="至"
+                            start-placeholder=""
+                            end-placeholder="">
+            </el-date-picker>
+        </el-form-item>
+
+        <el-form-item>
+            <el-button type="primary" v-on:click="onList">搜索</el-button>
+        </el-form-item>
+    </el-form>
+    <el-row>
+        <el-button type="primary" v-on:click="onShowInsert">新建</el-button>
+
+    </el-row>
+
+    <el-table :data="entityList" row-key="key" v-on:row-click="onRowClick" v-loading="listLoading" size="medium"  element-loading-text="拼命加载中" highlight-current-row style="width: 100%; border-top:1px solid #ccc; margin-top:10px;" height="666"  >
+        <el-table-column prop="workflowName" label="流程名称" width="260" header-align="center"></el-table-column>
+        <el-table-column prop="createTime" label="新建时间" width="170" header-align="center" align="center" :formatter="createTimeFormatter"></el-table-column>
+        <el-table-column prop="" label="" width=""></el-table-column>
+        <el-table-column fixed="right" label="操作" header-align="center" align="center" width="180">
+            <template slot-scope="scope">
+                <el-button type="text" v-on:click="onShowDesign(scope.row)">设计</el-button>
+                <el-button type="text" v-on:click="onShowUpdate(scope.row.id)">修改</el-button>
+                <el-button type="text" v-on:click="onDelete(scope.row.id)">删除</el-button>
+            </template>
+        </el-table-column>
+    </el-table>
+
+    <div style="margin-top:4px;">
+        <el-pagination v-on:size-change="onPageSizeChange"
+                       v-on:current-change="onPageNumberChange"
+                       :current-page="page.pageNumber"
+                       :page-sizes="[10, 20, 50, 100]"
+                       :page-size="page.pageSize"
+                       layout="total, sizes, prev, pager, next, jumper"
+                       :total="page.totalCount">
+        </el-pagination>
+    </div>
+    <el-dialog :modal="true" :close-on-click-modal="false" :title="editTitle" :visible.sync="editVisible">
+        <el-form :model="entity" ref="entity" :rules="editRules" label-width="120px">
+            <el-form-item label="流程名称" prop="workflowName">
+                <el-input v-model="entity.workflowName" autocomplete="off"></el-input>
+            </el-form-item>
+
+            <el-form-item label="流程实例页面" prop="instanceUrl">
+                <el-input v-model="entity.instanceUrl" autocomplete="off"></el-input>
+            </el-form-item>
+
+        </el-form>
+        <div slot="footer" class="dialog-footer" style="margin-right:30px;">
+            <el-button v-on:click="editVisible = false">取消</el-button>
+            <el-button type="primary" v-on:click="onSave">确定</el-button>
+        </div>
+    </el-dialog>
+
+    <el-dialog :modal="true" :close-on-click-modal="false" width="60%" fullscreen :title="designTitle" :visible.sync="designVisible" @close="onDesignClose">
+        <iframe frameborder="0" scrolling="no" style="position: relative; width: 100%; height: 80vh; background-color: transparent;" :src="designUrl" allowtransparency="true"></iframe>
+    </el-dialog>
+
+</div>
+<script>
+    var box = new Vue({
+        el: '#vuebox',
+        computed:
+            {},
+        created() {
+            vue = this;
+            vue.onList();
+        },
+        methods: {
+            getConditions() {
+                var conditions = [];
+                createCondition(conditions, "workflowName", "LIKE", vue.conditions.workflowName);
+                createCondition(conditions, "createTime", "=", vue.conditions.createTime, "dateRange");
+                return conditions;
+            },
+            onList() {
+                commonList(vue.getConditions());
+            },
+            afterList(data) {
+                vue.status = data.status;
+            },
+            onPageSizeChange(val) {
+                commonOnPageSizeChange(val);
+            },
+            onPageNumberChange(val) {
+                commonOnPageNumberChange(val);
+            },
+            onSortChange: function (column, prop, order) {
+                commonOnSortChange(column, prop, order);
+            },
+            get(id) {
+                commonGet(id);
+            },
+            afterGet(data) {
+            },
+            createByFormatter(row, column) {
+                return getCodeName(vue.createBy, row.createBy);
+            },
+            createTimeFormatter(row, column) {
+                return getDateTime(row.createTime);
+            },
+            onShowInsert() {
+                commonShowInsert()
+            },
+            onShowUpdate(id) {
+                commonShowUpdate(id)
+            },
+            onSave() {
+                commonSave();
+            },
+            onDelete(id) {
+                commonDelete(id);
+            },
+            onRowClick(row) {
+                vue.currentRow = row;
+            },
+            onShowDesign(row) {
+                vue.designUrl = addUrlParameter("/workflow/workflowDesign", "id", row.id);
+                vue.designTitle = row.workflowName + "设计"
+                vue.designVisible = true;
+            },
+            onDesignClose(){
+                vue.designUrl = "";
+            }
+        },
+        data:
+            {
+                service: 'workflow',
+                displayName: '工作流程',
+                conditions: {
+                    courseName: "",
+                    createTime: ""
+                },
+                page: {
+                    pageNumber: 1,
+                    pageSize: 10,
+                    totalCount: 0,
+                    orderBy: ""
+                },
+                listLoading: false,
+                entityList: [],
+                editTitle: "",
+                editVisible: false,
+                valid: true,
+                entity: {
+                },
+                editRules: {
+                    workflowName: [
+                        {required: true, message: '流程名称不能为空', trigger: 'blur'}
+                    ]
+                },
+                designTitle: "",
+                designVisible: false,
+                designUrl: ""
+            }
+    });
+</script>
+
+</body>
+</html>

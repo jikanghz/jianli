@@ -1,0 +1,274 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>提现审核</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <link rel="stylesheet" href="/css/element-ui.css">
+
+    <script src="/js/vue.js"></script>
+    <script src="/js/axios.js"></script>
+    <script src="/js/element-ui.js"></script>
+    <script src="/js/base64.js"></script>
+    <script src="/js/common.js"></script>
+    <style type="text/css">
+        .content {
+            width: 100%;
+            display: flex;
+            flex-direction: row;
+            justify-content: flex-start;
+            align-items: flex-start;
+            max-height: 95vh;
+            overflow-y:auto;
+        }
+
+        .form {
+            width: 800px;
+        }
+
+        .activities{
+            margin-left: 10px;
+        }
+
+        .dialog-footer {
+            display: flex;
+            flex-direction: row;
+            justify-content: flex-end;
+            align-items: center;
+
+            margin-top: 30px;
+            margin-right: 30px;
+        }
+
+        .uploadList
+        {
+            display: flex;
+            flex-direction: row;
+            justify-content: flex-start;
+            align-items: center;
+            margin-left: 6px;
+            margin-top:0px;
+            margin-bottom:0px;
+            margin-right: 6px;
+            padding:0px;
+            height: 40px;
+            line-height:40px;
+        }
+        .link
+        {
+            color:#409EFF;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body style="padding:0px; margin: 10px 15px 0px;">
+<div id="vuebox" style="width:100%;margin-left:auto; margin-right:auto;">
+    <div class="content">
+        <div class="form">
+            <el-form :model="entity" ref="entity" :rules="editRules" label-width="120px">
+                <el-row>
+                    <el-col :span="12">
+                        <el-form-item label="会员帐号">
+                            <el-input v-model="entity.loginName" autocomplete="off" :disabled="true"></el-input>
+                        </el-form-item>
+                    </el-col>
+
+                    <el-col :span="12">
+                        <el-form-item label="提现金额">
+                            <el-input v-model="entity.amount" autocomplete="off" :disabled="true"></el-input>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+                <el-form-item  label="附件">
+                    <div class="uploadList" v-for="(row,k) in entity.fileList">
+                        <a class="link" :href="row.fileUrl" target="_blank" :title="row.fileName">{{row.fileName}}</a>
+                    </div>
+                </el-form-item>
+
+                <el-form-item label="审批意见" prop="activityRemark">
+                    <el-input type="textarea" :rows="2" v-model="entity.activityRemark"></el-input>
+                    <el-select v-model="words" clearable style="width:100%"  placeholder="常用审批意见" v-on:change='onApproveCommonWordsChange'>
+                        <el-option v-for="item in approveCommonWords" :key="item.codeValue" :label="item.codeName" :value="item.codeValue">
+                        </el-option>
+                    </el-select>
+                </el-form-item>
+
+                <el-form-item label="会签接收人" prop="countersignUserIds" v-if="countersignUsers.length > 0">
+                    <el-checkbox v-for="item in countersignUsers" v-model="item.checked" :label="item.codeName" :key="item.codeValue">{{item.codeName}}</el-checkbox>
+                </el-form-item>
+            </el-form>
+            <div class="dialog-footer">
+                <el-button v-on:click="onCancel">取消</el-button>
+                <el-button v-on:click="onShowReturn()">退回</el-button>
+
+                <el-button type="primary" v-on:click="onSave(1)">通过</el-button>
+            </div>
+        </div>
+        <div class="activities">
+            <el-timeline>
+                <el-timeline-item
+                        v-for="(activity, index) in activities"
+                        :key="index"
+                        :color="activity.color"
+                        :content="activity.content"
+                        :timestamp="activity.createTime">
+                    {{activity.content}}
+                </el-timeline-item>
+            </el-timeline>
+        </div>
+        <el-dialog  width="30%"  title="退回确认" :visible.sync="returnVisible" :modal="false">
+            <el-form :model="entity" ref="returnTo" :rules="returnToRules" label-width="160px">
+                <el-form-item label="退回到"  prop="returnTo">
+                    <el-select v-model="entity.returnTo" style="width:100%">
+                        <el-option v-for="item in returnTos" :key="item.codeValue" :label="item.codeName" :value="item.codeValue">
+                        </el-option>
+                    </el-select>
+                </el-form-item>
+            </el-form>
+            <div slot="footer" class="dialog-footer" style="margin-right:30px;">
+                <el-button v-on:click="returnVisible = false">取消</el-button>
+                <el-button type="primary" v-on:click="onReturn">确定</el-button>
+            </div>
+        </el-dialog>
+    </div>
+</div>
+<script>
+    var box = new Vue({
+        el: '#vuebox',
+        created() {
+            vue = this;
+            vue.onLoad();
+        },
+        methods: {
+            onLoad(){
+               var postData = createJsonRequest({
+                    activityId: getUrlParameter("activityId")
+               });
+               axios.post(getApiUrl("cash", "getApprove"), postData).then(function (response) {
+                    if (isOK(response)) {
+                        vue.entity =  response.data.data.entity;
+                        vue.activities = response.data.data.activities;
+                        vue.returnTos = response.data.data.returnTos;
+                        vue.approveCommonWords = response.data.data.approveCommonWords;
+
+                        var condition = "金额<1000";
+                        if(vue.entity.amount >= 1000){
+                            condition = "金额>=1000";
+                        }
+
+                        var postData = createJsonRequest({
+                            activityId: getUrlParameter("activityId"),
+                            condition: condition
+                        });
+                        axios.post(getApiUrl("workflowEngine", "listNextCountersignUsers"), postData).then(function (response) {
+                            if (isOK(response)) {
+                                vue.countersignUsers = response.data.data.countersignUsers;
+                            }
+                        });
+                    }
+               });
+            },
+            onApproveCommonWordsChange(value){
+                vue.$set(vue.entity,'activityRemark',value);
+            },
+            onSave() {
+                vue.$refs["entity"].validate((valid) => {
+                    if (valid) {
+                       var countersignUserIds = [];
+                       for(var i=0; i<vue.countersignUsers.length; ++i){
+                            if(vue.countersignUsers[i].checked){
+                                countersignUserIds.push(vue.countersignUsers[i].codeValue);
+                            }
+                       }
+                       if(vue.countersignUsers.length > 0 && countersignUserIds.length < 1){
+                            parent.box.$message({showClose: true, message: "请选择会签接收人", type: 'error'});
+                            return;
+                       }
+
+                       var data = vue.entity;
+                       data.activityId =  getUrlParameter("activityId");
+                       data.result =  1;
+                       data.activityRemark = vue.entity.activityRemark;
+                       data.countersignUserIds =  countersignUserIds;
+
+                       var postData = createJsonRequest(data);
+                       axios.post(getApiUrl("cash", "saveApprove"), postData).then(function (response) {
+                            if (isOK(response)) {
+                                parent.box.onOK();
+                            }
+                       });
+                       vue.valid = true;
+                    }
+                    else {
+                        vue.valid = false;
+                    }
+               });
+            },
+            onCancel() {
+                parent.box.onCancel();
+            },
+            onShowReturn() {
+               vue.$refs["entity"].validate((valid) => {
+                    if (valid) {
+                        if(!vue.returnToValid)
+                        {
+                            vue.$refs["returnTo"].resetFields();
+                        }
+                        vue.returnVisible = true;
+                        vue.valid = true;
+                    }
+                    else {
+                        vue.valid = false;
+                    }
+               });
+            },
+            onReturn() {
+                vue.$refs["returnTo"].validate((valid) => {
+                    if (valid) {
+                        var postData = createJsonRequest({
+                            activityId: getUrlParameter("activityId"),
+                            result: 0,
+                            activityRemark: vue.entity.activityRemark,
+                            returnTo: vue.entity.returnTo
+                        });
+                        axios.post(getApiUrl("cash", "saveApprove"), postData).then(function (response) {
+                            if (isOK(response)) {
+
+                                vue.returnVisible = false;
+                                vue.returnToValid = true;
+                                parent.box.onOK();
+                            }
+                        });
+                    }
+                    else {
+                        vue.returnToValid = false;
+                    }
+               });
+            },
+        },
+        data:{
+            entity: {
+            },
+            valid: true,
+            editRules: {
+                activityRemark: [
+                    {required: true, message: '审批意见不能为空', trigger: 'change'}
+                ]
+            },
+            returnToRules: {
+                returnTo: [
+                    {required: true, message: '请选择退回节点', trigger: 'change'}
+                ]
+            },
+            activities: [],
+            approveCommonWords: [],
+            words: "",
+            returnVisible: false,
+            returnTos: [],
+            returnToValid: true,
+            countersignUsers: []
+        }
+    });
+</script>
+</body>
+</html>

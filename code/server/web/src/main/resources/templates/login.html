@@ -1,0 +1,126 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Access-Control-Allow-Origin" content="*" />
+    <title>管理系统</title>
+
+    <link rel="stylesheet" href="/css/element-ui.css">
+
+    <script src="/js/vue.js"></script>
+    <script src="/js/axios.js"></script>
+    <script src="/js/element-ui.js"></script>
+    <script src="/js/language/en.js"></script>
+    <script src="/js/language/cn.js"></script>
+    <script src="/js/common.js"></script>
+
+    <style>
+        .langBar{
+            display: flex;
+            flex-direction: row;
+            justify-content: flex-end;
+            align-items: center;
+        }
+    </style>
+</head>
+<body style="background-color: #F2F7FA;">
+<div id="vuebox">
+    <div class="langBar">
+        <!--        <el-select v-model="currentLang" v-on:change="currentLangChange">-->
+        <!--            <el-option v-for="item in langList" :key="item.codeValue" :label="item.codeName" :value="item.codeValue">-->
+        <!--            </el-option>-->
+        <!--        </el-select>-->
+    </div>
+    <img style="position:fixed; top:0; left:0; height:100%; z-index:-2; opacity:0.6;" src="/image/loginBackground.png" />
+    <div style="width:400px; position:fixed; top:40%; left:50%; transform: translate(-50%, -50%); background-color: white;box-sizing: border-box; padding:40px; box-shadow: rgba(0, 0, 0, 0.06) 0px 2px 8px 0px;">
+        <div style="width:100%; height:60px; text-align:center; font-size:24px; ">{{lang().welcomeToLogin}}</div>
+        <el-form label-width="0px">
+            <el-form-item label="">
+                <el-input v-model="loginName" :placeholder="lang().pleaseEnterTheLoginAccount"></el-input>
+            </el-form-item>
+            <el-form-item label="">
+                <el-input v-model="password" type="password" :placeholder="lang().pleaseEnterTheLoginPassword"></el-input>
+            </el-form-item>
+            <el-alert :title="message" type="error" v-show="message != ''" :closable="false" style=""></el-alert>
+            <el-button type="primary" style="width:320px; margin-top:10px; font-size:16px; " v-on:click="login">{{lang().login}}</el-button>
+        </el-form>
+        <div style="margin-top:12px;">
+        </div>
+    </div>
+</div>
+<script>
+    window.onload = function () {
+        if (parent != null && parent.document.getElementById("DivMain") != null) {
+            parent.document.location = "/login";
+            return;
+        }
+        if (parent != null && parent.parent != null && parent.parent.document.getElementById("DivMain") != null) {
+            parent.parent.document.location = "/login";
+            return;
+        }
+        if (parent != null && parent.parent != null && parent.parent.parent != null && parent.parent.parent.document.getElementById("DivMain") != null) {
+            parent.parent.parent.document.location = "/login";
+            return;
+        }
+    };
+    var box = new Vue({
+        el: '#vuebox',
+        data:
+            {
+                loginName: '',
+                password: '',
+                message: '',
+                currentLang: 'en',
+                langList: [
+                    {codeValue: 'en', codeName: 'English'},
+                    {codeValue: 'cn', codeName: '中文'},
+                ]
+            },
+        created() {
+            vue = this;
+            vue.currentLang = getCookie("lang");
+        },
+        methods: {
+            login() {
+                if (vue.loginName == "") {
+                    vue.message = "帐号不能为空"
+                    return;
+                }
+                if (vue.password == "") {
+                    vue.message = "密码不能为空"
+                    return;
+                }
+
+                vue.message = '';
+                axios.post(getApiUrl("security", "login"),
+                    createJsonRequest({loginName: vue.loginName, password: vue.password})
+                    )
+                    .then(function (response) {
+                        if(isOK(response))
+                        {
+                            setCookie("apiToken", response.data.data.token);
+                            window.location.href = "/main";
+                        }
+                        else
+                        {
+                            vue.message = response.data.message;
+                        }
+                    })
+                    .catch(function (error) {
+                        vue.message = error;
+                    });
+            },
+            lang()
+            {
+                return commonLang();
+            },
+            currentLangChange()
+            {
+                setCookie("lang", vue.currentLang, 365);
+                vue.$forceUpdate();
+            }
+        }
+    });
+</script>
+</body>
+</html>

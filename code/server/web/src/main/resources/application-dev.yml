@@ -1,0 +1,59 @@
+spring:
+  application:
+    name: web
+  thymeleaf:
+    cache: false
+    mode: HTML
+    encoding: utf-8
+    servlet:
+      content-type: text/html
+  devtools:
+    restart:
+      enabled: true
+  datasource:
+    type: com.alibaba.druid.pool.DruidDataSource
+    url: jdbc:mysql://localhost:3306/jianli?characterEncoding=UTF-8&useSSL=false&serverTimezone=GMT%2B8
+    username: jianli
+    password: 123456
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    druid:
+      test-on-borrow: true
+      test-while-idle: true
+  redis:
+    host: localhost
+    port: 6379
+    password: 123456
+  session:
+    store-type: redis
+  servlet:
+    multipart:
+      max-file-size: 200000000
+      max-request-size: 200000000
+
+mapper:
+  mappers:
+    - tk.mybatis.mapper.common.Mapper
+  not-empty: true
+
+server:
+  port: 8310
+  servlet:
+    context-path: /
+
+upload:
+  endpoint:
+  accessKeyId:
+  accessKeySecret:
+  bucketName:
+  domain: http://localhost:8310/upload/
+  localPath: E:/jianli/code/server/web/target/classes/static/upload/
+
+sms:
+  accessKeyId:
+  accessKeySecret:
+  signName:
+
+web:
+  domain: http://localhost:8310
+  protectedDemoApis:
+  logApis: security/login

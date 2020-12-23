@@ -1,0 +1,351 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>模块管理</title>
+
+    <link rel="stylesheet" href="/css/common.css">
+    <link rel="stylesheet" href="/css/element-ui.css">
+
+    <script src="/js/vue.js"></script>
+    <script src="/js/axios.js"></script>
+    <script src="/js/element-ui.js"></script>
+    <script src="/js/base64.js"></script>
+    <script src="/js/common.js"></script>
+    <style>
+
+    </style>
+</head>
+<body style="padding:0px; margin-left:15px;  margin-top:10px; margin-bottom:0px; ">
+<div id="vuebox" style="width:100%;margin-left:auto; margin-right:auto;">
+    <el-form :inline="true" style="">
+
+    </el-form>
+
+    <el-row>
+        <el-button type="primary" v-on:click="onShowInsert">新建</el-button>
+        <el-button v-on:click="onShowStandardFunction">新建标准功能</el-button>
+    </el-row>
+
+    <el-table :data="entityList" row-key="id" v-loading="listLoading" size="medium"  element-loading-text="拼命加载中" highlight-current-row style="width: 100%; border-top:1px solid #ccc; margin-top:10px;" height="666"  :tree-props="{children: 'moduleList'}"  v-on:row-click='onRowClick'>
+        <el-table-column prop="moduleName" label="模块名称" width="220" header-align="center" align="left"></el-table-column>
+        <el-table-column prop="moduleType" label="模块类型" width="100" header-align="center" align="center"  :formatter="moduleTypeFormatter"></el-table-column>
+        <el-table-column label="图标" header-align="center" align="center" width="100">
+            <template slot-scope="scope">
+                <i v-if="scope.row.iconUrl" :class="scope.row.iconUrl"></i>
+            </template>
+        </el-table-column>
+
+        <el-table-column prop="moduleUrl" label="Url" width="260" header-align="center" align="left"></el-table-column>
+
+        <el-table-column prop="service" label="对象名称" width="200" header-align="center" align="left"></el-table-column>
+        <el-table-column prop="method" label="方法名称" width="200" header-align="center" align="left"></el-table-column>
+        <el-table-column prop="itemOrder" label="序号" width="120" header-align="center" align="center"></el-table-column>
+
+        <el-table-column prop="createTime" label="新建时间" width="170" header-align="center" align="center" :formatter="createTimeFormatter"></el-table-column>
+        <el-table-column prop="" label="" width=""></el-table-column>
+        <el-table-column fixed="right" label="操作" header-align="center" width="120">
+            <template slot-scope="scope">
+                <el-button type="text" v-on:click="onShowUpdate(scope.row.id)">修改</el-button>
+                <el-button type="text" v-on:click="onDelete(scope.row.id)">删除</el-button>
+            </template>
+        </el-table-column>
+    </el-table>
+
+    <el-dialog :modal="true" :close-on-click-modal="false" :title="editTitle" :visible.sync="editVisible">
+        <el-form :model="entity" ref="entity" :rules="editRules" label-width="120px">
+
+            <el-row>
+                <el-col :span="12">
+                    <el-form-item label="模块名称" prop="moduleName">
+                        <el-input v-model="entity.moduleName" autocomplete="off"></el-input>
+                    </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                    <el-form-item label="模块类型" prop="moduleType">
+                        <el-select v-model="entity.moduleType" style="width:100%">
+                            <el-option v-for="item in moduleType" :key="item.codeValue" :label="item.codeName" :value="item.codeValue">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                </el-col>
+            </el-row>
+
+
+            <el-row>
+                <el-col :span="12">
+                    <el-form-item label="图标" prop="iconUrl">
+                        <el-input v-model="entity.iconUrl" autocomplete="off"></el-input>
+                    </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                    <el-form-item label="上级模块" prop="parentId">
+                        <el-cascader
+                                v-model="entity.parentId"
+                                :options="entityListSimple"
+                                :props="{ value:'id', label:'moduleName', children: 'moduleList', checkStrictly: true, expandTrigger: 'hover' }"
+                                style="width:100%"></el-cascader>
+                    </el-form-item>
+                </el-col>
+
+            </el-row>
+
+            <el-row>
+                <el-col :span="12">
+                    <el-form-item label="对象名称" prop="service">
+                        <el-input v-model="entity.service" autocomplete="off"></el-input>
+                    </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                    <el-form-item label="方法名称" prop="method">
+                        <el-input v-model="entity.method" autocomplete="off"></el-input>
+                    </el-form-item>
+                </el-col>
+            </el-row>
+
+            <el-row>
+                <el-col :span="12">
+                    <el-form-item label="Url" prop="moduleUrl">
+                        <el-input v-model="entity.moduleUrl" autocomplete="off"></el-input>
+                    </el-form-item>
+                </el-col>
+                <el-col :span="12">
+                    <el-form-item label="序号" prop="itemOrder">
+                        <el-input v-model="entity.itemOrder" autocomplete="off"></el-input>
+                    </el-form-item>
+                </el-col>
+            </el-row>
+
+        </el-form>
+        <div slot="footer" class="dialog-footer" style="margin-right:30px;">
+            <el-button v-on:click="editVisible = false">取消</el-button>
+            <el-button type="primary" v-on:click="onSave">确定</el-button>
+        </div>
+    </el-dialog>
+
+
+    <el-dialog :modal="true" :close-on-click-modal="false" title="新建标准功能" :visible.sync="standardFunctionVisible"  width="40%">
+        <el-form :model="standardFunction" ref="standardFunction" :rules="standardFunctionRules" label-width="120px">
+            <el-row>
+                <el-col :span="24">
+                    <el-form-item label="上级模块">
+                        <el-cascader
+                                v-model="standardFunction.parentId"
+                                :options="entityListSimple" disabled
+                                :props="{ value:'id', label:'moduleName', children: 'moduleList', checkStrictly: true, expandTrigger: 'hover' }"
+                                style="width:100%"></el-cascader>
+                    </el-form-item>
+                </el-col>
+            </el-row>
+
+            <el-row>
+                <el-col :span="12">
+                    <el-form-item label="服务对象" prop="service">
+                        <el-input v-model="standardFunction.service" autocomplete="off"></el-input>
+                    </el-form-item>
+                </el-col>
+            </el-row>
+
+            <el-form-item label="标准功能" prop="checkList">
+                <el-checkbox-group v-model="standardFunction.checkList">
+                    <el-checkbox label="列表"></el-checkbox>
+                    <el-checkbox label="查看"></el-checkbox>
+                    <el-checkbox label="新建"></el-checkbox>
+                    <el-checkbox label="修改"></el-checkbox>
+                    <el-checkbox label="删除"></el-checkbox>
+                    <el-checkbox label="导出"></el-checkbox>
+                </el-checkbox-group>
+            </el-form-item>
+
+        </el-form>
+        <div slot="footer" class="dialog-footer" style="margin-right:30px;">
+            <el-button v-on:click="standardFunctionVisible = false">取消</el-button>
+            <el-button type="primary" v-on:click="onSaveStandardFunction">确定</el-button>
+        </div>
+    </el-dialog>
+
+</div>
+
+<script>
+    var box = new Vue({
+        el: '#vuebox',
+        computed:
+            {},
+        created() {
+            vue = this;
+            vue.onList();
+        },
+        methods: {
+            onList() {
+                commonList(null);
+            },
+            afterList(data) {
+                vue.moduleType = data.moduleType;
+                vue.entityListSimple = data.entityListSimple;
+            },
+            get(id) {
+                commonGet(id);
+            },
+            afterGet(data) {
+                vue.entity.parentId = vue.getParentIds(vue.entity.id);
+            },
+            onShowInsert() {
+                commonShowInsert();
+            },
+            onShowUpdate(id) {
+                commonShowUpdate(id);
+            },
+            onSave() {
+                commonSave();
+            },
+            onDelete(id) {
+                commonDelete(id);
+            },
+            moduleTypeFormatter (row, column) {
+                return getCodeName(vue.moduleType, row.moduleType);
+            },
+            createTimeFormatter (row, column) {
+                return getDateTime(row.createTime);
+            },
+            findModule(moduleList, id)
+            {
+                if(moduleList == null)
+                {
+                    return null;
+                }
+
+                for (var i=0; i<moduleList.length; ++i)
+                {
+                    if(moduleList[i].id == id)
+                    {
+                        return moduleList[i];
+                    }
+                    if(moduleList[i].moduleList != null)
+                    {
+                        var module = vue.findModule(moduleList[i].moduleList, id);
+                        if(module != null)
+                        {
+                            return module;
+                        }
+                    }
+                }
+                return null;
+            },
+
+            getParentId(id)
+            {
+                var module = vue.findModule(vue.entityList, id);
+                if(module != null)
+                {
+                    return module.parentId.toString();
+                }
+                return "0";
+            },
+            getParentIds(id) {
+                var parentIds = [];
+                if(id != null && id != "" && id != "0") {
+                    var parentId = vue.getParentId(id);
+                    if (parentId != "0") {
+                        parentIds.unshift(parentId);
+                        parentId = vue.getParentId(parentId);
+                        if (parentId != "0") {
+                            parentIds.unshift(parentId);
+                            parentId = vue.getParentId(parentId);
+                            if (parentId != "0") {
+                                parentIds.unshift(parentId);
+                                parentId = vue.getParentId(parentId);
+                                if (parentId != "0") {
+                                    parentIds.unshift(parentId);
+                                }
+                            }
+                        }
+                    }
+                }
+                return parentIds;
+            },
+
+            onShowStandardFunction() {
+                if(vue.standardFunction.parentId == '')
+                {
+                    vue.$alert('请选择需要新建标准功能的模块', '提示', {
+                        type: 'warning'
+                    });
+                    return
+                }
+
+                axios.post(getApiUrl("sysModule", "listStandardFunction"),
+                    createJsonRequest({id: vue.standardFunction.parentId})
+                )
+                .then(function (response) {
+                    if (isOK((response))) {
+                        vue.standardFunction.service = response.data.data.service;
+                        if(response.data.data.standardFunctions.length < 1)
+                        {
+                            vue.standardFunction.checkList = ['列表','查看','新建','修改','删除','导出'];
+                        }
+                        else {
+                            vue.standardFunction.checkList = response.data.data.standardFunctions;
+                        }
+                    }
+                })
+                vue.standardFunctionVisible = true;
+            },
+            onSaveStandardFunction() {
+                vue.$refs["standardFunction"].validate((valid) => {
+                    if (valid) {
+                        commonPost(vue.service, "setStandardFunction", {
+                            parentId: vue.standardFunction.parentId,
+                            service: vue.standardFunction.service,
+                            standardFunctions: vue.standardFunction.checkList
+                        });
+
+                        vue.standardFunctionVisible = false;
+
+                    } else {
+                        vue.standardFunctionValid = false;
+                    }
+                });
+            },
+            onRowClick (row, column) {
+                vue.standardFunction.parentId = row.id;
+            },
+        },
+        data:
+            {
+                service: 'sysModule',
+                displayName: '模块',
+                listLoading: false,
+                entityList: [],
+                editTitle: "",
+                editVisible: false,
+                entity: {
+                },
+                editRules: {
+                    moduleName: [
+                        {required: true, message: '模块名称不能为空', trigger: 'blur'}
+                    ],
+                    itemOrder: [
+                        {required: true, message: '序号不能为空', trigger: 'blur'}
+                    ]
+                },
+                valid: true,
+                moduleType:[],
+                entityListSimple: [],
+                standardFunctionVisible: false,
+                standardFunctionValid: true,
+                standardFunction:
+                {
+                    parentId: '',
+                    service: '',
+                    checkList: []
+                },
+                standardFunctionRules: {
+                    service: [
+                        {required: true, message: '服务名称不能为空', trigger: 'blur'}
+                    ]
+                },
+            }
+    });
+</script>
+</body>
+</html>

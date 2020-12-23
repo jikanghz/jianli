@@ -1,0 +1,202 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>公告管理</title>
+
+    <link rel="stylesheet" href="/css/common.css">
+    <link rel="stylesheet" href="/css/element-ui.css">
+
+    <script src="/js/vue.js"></script>
+    <script src="/js/axios.js"></script>
+    <script src="/js/element-ui.js"></script>
+    <script src="/js/base64.js"></script>
+    <script src="/js/common.js"></script>
+    <script src="/js/wangEditor.min.js"></script>
+    <style>
+.el-dialog__body {
+    padding-top: 5px;
+    padding-bottom: 5px;
+    padding-right: 20px;
+    padding-left: 0px;
+}
+
+.w-e-text-container{
+    height: 500px !important;
+}
+
+    </style>
+</head>
+<body style="padding:0px; margin-left:15px;  margin-top:10px; margin-bottom:0px; ">
+<div id="vuebox" style="width:100%;margin-left:auto; margin-right:auto;">
+    <el-form :inline="true" style="">
+        <el-form-item label="标题">
+            <el-input v-model="conditions.title"></el-input>
+        </el-form-item>
+
+        <el-form-item label="新建时间">
+            <el-date-picker v-model="conditions.createTime"
+                            type="daterange"
+                            format="yyyy-MM-dd"
+                            value-format="yyyy-MM-dd"
+                            range-separator="至"
+                            start-placeholder=""
+                            end-placeholder="">
+            </el-date-picker>
+        </el-form-item>
+
+        <el-form-item>
+            <el-button type="primary" v-on:click="onList">搜索</el-button>
+        </el-form-item>
+    </el-form>
+
+    <el-row>
+        <el-button type="primary" v-on:click="onShowInsert">新建</el-button>
+    </el-row>
+
+    <el-table :data="entityList" v-on:sort-change='onSortChange'v-loading="listLoading" size="medium" element-loading-text="拼命加载中" highlight-current-row style="width: 100%; border-top:1px solid #ccc; margin-top:10px;" height="666">
+        <el-table-column prop="title" label="标题" width="320" header-align="center" align="left" sortable='custom'></el-table-column>
+        <el-table-column prop="createTime" label="新建时间" width="170" header-align="center" align="center" sortable='custom' :formatter="createTimeFormatter"></el-table-column>
+        <el-table-column prop="" label="" width=""></el-table-column>
+        <el-table-column fixed="right" label="操作" header-align="center" align="center" width="120">
+            <template slot-scope="scope">
+                <el-button type="text" v-on:click="onShowUpdate(scope.row.id)">修改</el-button>
+                <el-button type="text" v-on:click="onDelete(scope.row.id)">删除</el-button>
+            </template>
+        </el-table-column>
+    </el-table>
+
+    <div style="margin-top:4px;">
+        <el-pagination v-on:size-change="onPageSizeChange"
+                       v-on:current-change="onPageNumberChange"
+                       :current-page="page.pageNumber"
+                       :page-sizes="[10, 20, 50, 100]"
+                       :page-size="page.pageSize"
+                       layout="total, sizes, prev, pager, next, jumper"
+                       :total="page.totalCount">
+        </el-pagination>
+    </div>
+
+    <el-dialog :modal="true" :close-on-click-modal="false" :title="editTitle" :visible.sync="editVisible" top="2vh" width="60%">
+        <el-form :model="entity" ref="entity" :rules="editRules" label-width="80px">
+            <el-form-item label="标题" prop="title">
+                <el-input v-model="entity.title" autocomplete="off"></el-input>
+            </el-form-item>
+
+            <el-form-item label="内容" prop="content">
+                <div id="editor"></div>
+            </el-form-item>
+
+        </el-form>
+        <div slot="footer" class="dialog-footer" style="margin-right:30px;">
+            <el-button v-on:click="editVisible = false">取消</el-button>
+            <el-button type="primary" v-on:click="onSave">确定</el-button>
+        </div>
+    </el-dialog>
+
+
+</div>
+
+<script>
+    var box = new Vue({
+        el: '#vuebox',
+        computed:
+            {},
+        created() {
+            vue = this;
+            vue.onList();
+        },
+        watch: {
+            editVisible: function (val, oldVal) {
+                if(!val){
+                    vue.editor = null;
+                }
+            }
+        },
+        methods: {
+            getConditions() {
+                var conditions = [];
+                createCondition(conditions, "title", "LIKE", vue.conditions.title);
+                return conditions;
+            },
+            onList() {
+                commonList(vue.getConditions());
+            },
+            afterList(data) {
+
+            },
+            onExportList() {
+                commonExportList(vue.getConditions());
+            },
+            onPageSizeChange(val) {
+                commonOnPageSizeChange(val);
+            },
+            onPageNumberChange(val) {
+                commonOnPageNumberChange(val);
+            },
+            onSortChange: function (column, prop, order) {
+                commonOnSortChange(column, prop, order);
+            },
+            get(id) {
+                commonGet(id);
+            },
+            afterGet(data) {
+                var E = window.wangEditor;
+                vue.editor = new E('#editor');
+                vue.editor.customConfig.uploadImgShowBase64 = true;
+                vue.editor.customConfig.uploadImgMaxSize = 8 * 1024 * 1024
+                vue.editor.create();
+                vue.editor.txt.html(vue.entity.content);
+            },
+            onShowInsert() {
+                commonShowInsert()
+            },
+            onShowUpdate(id) {
+                commonShowUpdate(id)
+            },
+            onSave() {
+                vue.entity.content = vue.editor.txt.html();
+                commonSave();
+            },
+            onDelete(id) {
+                commonDelete(id);
+            },
+            statusFormatter (row, column) {
+                return getCodeName(vue.status, row.status);
+            },
+            createTimeFormatter (row, column) {
+                return getDateTime(row.createTime);
+            }
+        },
+        data:
+            {
+                service: 'notice',
+                displayName: '公告',
+                conditions: {
+                    userName: "",
+                    createTime: ""
+                },
+                page: {
+                    pageNumber: 1,
+                    pageSize: 10,
+                    totalCount: 0,
+                    orderBy: ""
+                },
+                listLoading: false,
+                entityList: [],
+                editTitle: "",
+                editVisible: false,
+                entity: {
+                },
+                editRules: {
+                    title: [
+                        {required: true, message: '标题不能为空', trigger: 'blur'}
+                    ]
+                },
+                valid: true,
+                editor: null
+            }
+    });
+</script>
+</body>
+</html>

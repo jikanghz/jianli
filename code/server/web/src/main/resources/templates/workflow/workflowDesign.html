@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>流程设计</title>
+    <link rel="stylesheet" href="/css/common.css">
+    <link rel="stylesheet" href="/css/element-ui.css">
+
+    <script src="/js/vue.js"></script>
+    <script src="/js/axios.js"></script>
+    <script src="/js/element-ui.js"></script>
+    <script src="/js/base64.js"></script>
+    <script src="/js/common.js"></script>
+    <script src="/js/g6.min.js"></script>
+
+
+    <script src="/js/graph.js"></script>
+    <style type="text/css">
+        .vuebox {
+            width:99%;
+            height:99vh;
+            margin-left:auto;
+            margin-right:auto;
+            display: flex;
+            flex-direction: row;
+            justify-content: flex-start;
+            align-items: flex-start;
+            border:1px solid #eee;
+        }
+
+        .content {
+            width: 70%;
+
+            height:100%;
+        }
+
+        .toolbar {
+            width: 56px;
+            height:100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-start;
+            align-items: center;
+            border:1px solid #eee;
+            border-top:0px;
+        }
+
+        .toolbarItem{
+            margin-top: 10px;
+            border:1px solid #fff;
+        }
+
+        .toolbarItem:hover{
+            background: rgba(232,239,247,1);
+            border:1px solid #a4cef9;
+        }
+
+        .selected {
+            background: rgba(232,239,247,1);
+            border:1px solid #a4cef9;
+        }
+
+        .toolbarItem a img{
+            width: 28px;
+            height: 28px;
+            margin: 2px;
+        }
+
+        .form
+        {
+            width:25%;
+            height:100%;
+            padding-right: 20px;
+
+            border:1px solid #eee;
+            border-right: 0px;
+            border-top:0px;
+        }
+
+    </style>
+</head>
+<body style="padding:0px; margin:0px;">
+<div id="vuebox" class="vuebox">
+    <div class="toolbar">
+        <div class="toolbarItem" :class="{'selected':action=='select'}">
+            <a title="选择" @click="onToolbarSelect();"><img src="/image/toolbar/select.png"></a>
+        </div>
+        <div class="toolbarItem" :class="{'selected':action=='node'}">
+            <a title="步骤节点" @click="onToolbarNode();"><img src="/image/toolbar/node.png"></a>
+        </div>
+        <div class="toolbarItem" :class="{'selected':action=='edge'}">
+            <a title="步骤连线" @click="onToolbarEdge();"><img src="/image/toolbar/edge.png"></a>
+        </div>
+        <div class="toolbarItem">
+            <a title="水平居中对齐" @click="onAlignHorizontalCenter();"><img src="/image/toolbar/alignHorizontalCenter.png"></a>
+        </div>
+
+        <div class="toolbarItem">
+            <a title="垂直居中对齐" @click="onAlignVerticalCenter();"><img src="/image/toolbar/alignVerticalCenter.png"></a>
+        </div>
+        <div class="toolbarItem">
+            <a title="保存" @click="onSave();"><img src="/image/toolbar/save.png"></a>
+        </div>
+        <div class="toolbarItem">
+            <a title="删除" @click="onDelete();"><img src="/image/toolbar/delete.png"></a>
+        </div>
+    </div>
+    <div id="canvas" class="content">
+    </div>
+    <div class="form"  v-show="selectType == 'step'" @mouseover="onFormMouseOver" @mouseleave="onFormMouseLeave">
+        <div style="margin-top: 40px;"></div>
+        <el-form :model="step" ref="step" :rules="stepRules" label-width="120px">
+            <el-form-item label="步骤名称">
+                <el-input v-model="step.stepName" autocomplete="off"></el-input>
+            </el-form-item>
+            <el-form-item label="Url" v-show="step.stepType == '1' || step.stepType == '2'">
+                <el-input v-model="step.activityUrl" autocomplete="off"></el-input>
+            </el-form-item>
+
+            <el-form-item label="处理人角色"  prop="roleId" v-show="step.stepType == '2'">
+                <el-select v-model="step.roleId" clearable style="width:100%">
+                    <el-option v-for="item in roleList" :key="item.codeValue" :label="item.codeName" :value="item.codeValue">
+                    </el-option>
+                </el-select>
+            </el-form-item>
+
+            <el-form-item label="是否允许退回"  prop="allowReturn" v-show="step.stepType == '2'">
+                <el-select v-model="step.allowReturn" clearable style="width:100%">
+                    <el-option v-for="item in yesNo" :key="item.codeValue" :label="item.codeName" :value="item.codeValue">
+                    </el-option>
+                </el-select>
+            </el-form-item>
+
+            <el-form-item label="是否会签步骤"  prop="countersign" v-show="step.stepType == '2'">
+                <el-select v-model="step.countersign" clearable style="width:100%">
+                    <el-option v-for="item in yesNo" :key="item.codeValue" :label="item.codeName" :value="item.codeValue">
+                    </el-option>
+                </el-select>
+            </el-form-item>
+
+            <el-form-item label="X">
+                <el-input v-model="step.x" autocomplete="off"></el-input>
+            </el-form-item>
+            <el-form-item label="Y">
+                <el-input v-model="step.y" autocomplete="off"></el-input>
+            </el-form-item>
+            <el-form-item label="宽度" v-show="step.stepType == '2'">
+                <el-input v-model="step.width" autocomplete="off"></el-input>
+            </el-form-item>
+
+        </el-form>
+
+        <div slot="footer" class="dialog-footer" style="margin-right:30px; display: flex; flex-direction: row; justify-content: flex-end;">
+            <el-button type="primary" v-on:click="onSetNode">确定</el-button>
+        </div>
+    </div>
+
+    <div class="form"  v-show="selectType == 'stepRelation'" @mouseover="onFormMouseOver" @mouseleave="onFormMouseLeave" @onmousemove="onFormMousemove">
+        <div style="margin-top: 40px;"></div>
+        <el-form :model="stepRelation" ref="stepRelation" :rules="stepRelationRules" label-width="120px">
+            <el-form-item label="前步骤名称">
+                <el-input v-model="stepRelation.fromStepName" autocomplete="off" :disabled="true"></el-input>
+            </el-form-item>
+            <el-form-item label="前步骤锚点"  prop="fromStepAnchor">
+                <el-select v-model="stepRelation.fromStepAnchor" style="width:100%">
+                    <el-option v-for="item in anchors" :key="item.codeValue" :label="item.codeName" :value="item.codeValue">
+                    </el-option>
+                </el-select>
+            </el-form-item>
+            <el-form-item label="后步骤名称">
+                <el-input v-model="stepRelation.toStepName" autocomplete="off" :disabled="true"></el-input>
+            </el-form-item>
+            <el-form-item label="后步骤锚点"  prop="toStepAnchor">
+                <el-select v-model="stepRelation.toStepAnchor" style="width:100%">
+                    <el-option v-for="item in anchors" :key="item.codeValue" :label="item.codeName" :value="item.codeValue">
+                    </el-option>
+                </el-select>
+            </el-form-item>
+            <el-form-item label="条件">
+                <el-input v-model="stepRelation.stepCondition" autocomplete="off"></el-input>
+            </el-form-item>
+        </el-form>
+
+        <div slot="footer" class="dialog-footer" style="margin-right:30px; display: flex; flex-direction: row; justify-content: flex-end;">
+            <el-button type="primary" v-on:click="onSetEdge">确定</el-button>
+        </div>
+    </div>
+</div>
+<script>
+    var box = new Vue({
+        el: '#vuebox',
+        created() {
+            vue = this;
+        },
+        mounted() {
+            vue.onLoad();
+        },
+        methods: {
+            onLoad(){
+                initGraphData();
+            },
+            onToolbarSelect() {
+                switchAction('select');
+            },
+            onToolbarNode() {
+                switchAction('node');
+            },
+            onToolbarEdge() {
+                switchAction('edge');
+            },
+            onAlignHorizontalCenter() {
+                const nodes = vue.selectItemList;
+                if(nodes.length > 0) {
+                    let x = nodes[0].getModel().x;
+                    nodes.forEach((node) => {
+                        vue.graph.update(node, {
+                            x: x,
+                        });
+                    });
+                }
+            },
+            onAlignVerticalCenter() {
+                const nodes = vue.selectItemList;
+                if(nodes.length > 0) {
+                    let y = nodes[0].getModel().y;
+                    nodes.forEach((node) => {
+                        vue.graph.update(node, {
+                            y: y,
+                        });
+                    });
+                }
+            },
+            onFormMouseOver() {
+                vue.editingItem = true;
+            },
+            onFormMouseLeave() {
+                vue.editingItem = false;
+            },
+            onFormMousemove() {
+                vue.editingItem = true;
+            },
+            onSetNode() {
+                if(vue.step != null && vue.selectItem != null)  {
+                    let newModel = {
+                        label: vue.step.stepName,
+                        x: parseInt(vue.step.x),
+                        y: parseInt(vue.step.y)
+                    };
+                    if(vue.selectItem.getModel().tag.stepType == 2) {
+                        newModel.type = 'rect';
+                        newModel.size = [parseInt(vue.step.width), 48];
+                    }
+
+                    let model = vue.selectItem.getModel();
+                    model.tag = vue.step;
+                    vue.graph.updateItem(vue.selectItem, newModel);
+
+                    parent.box.$message({showClose: true, message: "修改成功", type: 'success'});
+                }
+            },
+            onSetEdge() {
+                if(vue.stepRelation != null && vue.selectItem != null)  {
+                    let model = vue.selectItem.getModel();
+                    model.tag = vue.stepRelation;
+                    vue.graph.updateItem(vue.selectItem, {
+                        sourceAnchor : vue.stepRelation.fromStepAnchor,
+                        targetAnchor : vue.stepRelation.toStepAnchor,
+                    });
+
+                    parent.box.$message({showClose: true, message: "修改成功", type: 'success'});
+                }
+            },
+            onDelete() {
+                onDelete();
+            },
+            onSave() {
+                vue.entity.stepList = [];
+                vue.entity.stepRelationList = [];
+                const nodes = vue.graph.findAll('node', node => node);
+                for(let i=0; i<nodes.length; ++i) {
+                    let node = nodes[i];
+                    let model = node.getModel();
+                    let step = model.tag;
+                    step.id = model.id;
+                    step.stepName = model.label;
+                    step.x = parseInt(model.x);
+                    step.y = parseInt(model.y);
+                    if (step.stepType == 2) {
+                        step.width = parseInt(model.size[0]);
+                        step.height = parseInt(model.size[1]);
+                    }
+                    vue.entity.stepList.push(step);
+                }
+                const edges = vue.graph.findAll('edge', edge => edge);
+                for(let i=0; i<edges.length; ++i)
+                {
+                    let edge = edges[i];
+                    let model = edge.getModel();
+                    let stepRelation = model.tag;
+                    stepRelation.id = model.id;
+                    stepRelation.fromStepId = model.source;
+                    stepRelation.fromStepAnchor = model.sourceAnchor;
+                    stepRelation.toStepId = model.target;
+                    stepRelation.toStepAnchor = model.targetAnchor;
+                    vue.entity.stepRelationList.push(edge.getModel().tag);
+                }
+                var postData = createJsonRequest(vue.entity);
+                axios.post(getApiUrl("workflowConfig", "set"), postData).then(function (response) {
+                    if (isOK(response)) {
+                        parent.box.$message({showClose: true, message: "保存成功", type: 'success'});
+                    }
+                });
+            }
+        },
+        data:{
+            entity: {},
+            yesNo: [],
+            anchors: [{codeValue:0, codeName:'上'},{codeValue:1, codeName:'右'},{codeValue:2, codeName:'下'},{codeValue:3, codeName:'左'}],
+            roleList: [],
+            graph: {},
+            graphData: {
+                nodes: [],
+                edges: []
+            },
+
+            action: "select",
+
+            selectItem: null,
+            selectType: '',
+            step: {},
+            stepRelation: {},
+            stepRules: {
+            },
+            stepRelationRules: {
+            },
+            shadowNode: null,
+            editingItem: false,
+            selectItemList: []
+        }
+    });
+
+
+</script>
+</body>
+</html>
